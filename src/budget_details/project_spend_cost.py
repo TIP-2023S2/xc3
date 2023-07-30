@@ -125,17 +125,17 @@ def lambda_handler(event, context):
             print(project_name)
             payload = {'project_name': project_name}
             try:
-                expensive_lambda_response = lambda_client.invoke(
+                project_breakdown_lambda_response = lambda_client.invoke(
                     FunctionName=project_breakdown_lambda,
                     InvocationType="Event",
                     Payload=json.dumps(payload),
                 )
                 # Extract the status code from the response
-                status_code = expensive_lambda_response["StatusCode"]
+                status_code = project_breakdown_lambda_response["StatusCode"]
                 if status_code != 202:
                     # Handle unexpected status code
                     logging.error(
-                        f"Unexpected status code {status_code} returned from expensive_service_lambda"
+                        f"Unexpected status code {status_code} returned from project_breakdown_lambda"
                     )
             except Exception as e:
                 logging.error("Error in invoking lambda function: " + str(e))
