@@ -155,6 +155,13 @@ resource "terraform_data" "delete_project_spend_cost_zip_file" {
   }
 }
 
+resource "terraform_data" "delete_project_cost_breakdown_zip_file" {
+  triggers_replace = [aws_lambda_function.ProjectCostBreakdown.arn]
+  provisioner "local-exec" {
+    command = "rm -r ${data.archive_file.project_cost_breakdown.output_path}"
+  }
+}
+
 # Define the EventBridge rule
 resource "aws_cloudwatch_event_rule" "project_spend_cost" {
   name                = "${var.namespace}-project-spend-cost-rule"
