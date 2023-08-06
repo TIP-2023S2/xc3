@@ -18,6 +18,12 @@ data "archive_file" "project_spend_cost" {
   output_path = "${path.module}/project_spend_cost.zip"
 }
 
+data "archive_file" "project_cost_breakdown" {
+  type        = "zip"
+  source_file = "../src/budget_details/project_cost_breakdown.py"
+  output_path = "${path.module}/project_cost_breakdown.zip"
+}
+
 
 # Creating Inline policy
 resource "aws_iam_role_policy" "ProjectSpendCost" {
@@ -39,6 +45,16 @@ resource "aws_iam_role_policy" "ProjectSpendCost" {
         ]
         Effect   = "Allow"
         Resource = "*"
+      },
+      {
+        "Sid" : "LambdaInvokePermission",
+        "Effect" : "Allow",
+        "Action" : [
+          "lambda:InvokeFunction"
+        ],
+        "Resource" : [
+          "arn:aws:lambda:*:*:function:*"
+        ]
       },
       {
         "Effect" : "Allow",
@@ -87,6 +103,7 @@ resource "aws_lambda_function" "ProjectSpendCost" {
       prometheus_ip        = "${var.prometheus_ip}:9091"
       bucket_name          = var.s3_xc3_bucket.bucket
       project_spend_prefix = var.s3_prefixes.project_spend_prefix
+      lambda_function_name = aws_lambda_function.ProjectCostBreakdown.arn
     }
   }
   memory_size = var.memory_size
@@ -102,6 +119,34 @@ resource "aws_lambda_function" "ProjectSpendCost" {
 
 }
 
+resource "aws_lambda_function" "ProjectCostBreakdown" {
+  #ts:skip=AWS.LambdaFunction.LM.MEIDUM.0063 We are aware of the risk and choose to skip this rule
+  #ts:skip=AWS.LambdaFunction.Logging.0470 We are aware of the risk and choose to skip this rule
+  #ts:skip=AWS.LambdaFunction.EncryptionandKeyManagement.0471 We are aware of the risk and choose to skip this rule
+  function_name = "${var.namespace}-project-cost-breakdown"
+  role          = aws_iam_role.ProjectSpendCost.arn
+  runtime       = "python3.9"
+  handler       = "project_cost_breakdown.lambda_handler"
+  filename      = data.archive_file.project_cost_breakdown.output_path
+  environment {
+    variables = {
+      prometheus_ip        = "${var.prometheus_ip}:9091"
+      bucket_name          = var.s3_xc3_bucket.bucket
+      project_spend_prefix = var.s3_prefixes.project_spend_prefix
+    }
+  }
+  memory_size = var.memory_size
+  timeout     = var.timeout
+  layers      = [var.prometheus_layer]
+
+  vpc_config {
+    subnet_ids         = [var.subnet_id[0]]
+    security_group_ids = [var.security_group_id]
+  }
+
+  tags = merge(local.tags, tomap({ "Name" = "${var.namespace}-project_cost_breakdown_function" }))
+
+}
 
 resource "terraform_data" "delete_project_spend_cost_zip_file" {
   triggers_replace = [aws_lambda_function.ProjectSpendCost.arn]
