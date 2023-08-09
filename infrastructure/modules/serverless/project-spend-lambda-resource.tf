@@ -130,9 +130,9 @@ resource "aws_lambda_function" "ProjectCostBreakdown" {
   filename      = data.archive_file.project_cost_breakdown.output_path
   environment {
     variables = {
-      prometheus_ip        = "${var.prometheus_ip}:9091"
-      bucket_name          = var.s3_xc3_bucket.bucket
-      project_spend_prefix = var.s3_prefixes.project_spend_prefix
+      prometheus_ip                 = "${var.prometheus_ip}:9091"
+      bucket_name                   = var.s3_xc3_bucket.bucket
+      project_cost_breakdown_prefix = var.s3_prefixes.project_cost_breakdown_prefix
     }
   }
   memory_size = var.memory_size

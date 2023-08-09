@@ -18,14 +18,10 @@ import os
 import time
 from datetime import date, timedelta
 
+import botocore
 import boto3
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 
-# Initialize and Connect to the AWS EC2 Service
-try:
-    ec2_client = boto3.client("ec2")
-except Exception as e:
-    logging.error("Error creating boto3 client: " + str(e))
 try:
     s3 = boto3.client("s3")
 except Exception as e:
@@ -90,10 +86,8 @@ def lambda_handler(event, context):
         KeyError: Raise error if data not pushed to prometheus.
     """
 
-    # account_id = event["project_name"]
     project_name = event["project_name"]
     print("name", project_name)
-    # account_detail = event["account_detail"]
     # Cost of last 14 days
     cost_by_days = 14
     end_date = str(date.today())
@@ -126,16 +120,9 @@ def lambda_handler(event, context):
         reverse=True,
     )
 
-    # print("sorted_cost_data", sorted_cost_data)
-
-    # Get the top 5 most expensive resources
-    # top_5_resources = sorted_cost_data[:5]
-
     # Print the top 5 most expensive resources and their costs
     for resource in sorted_cost_data:
         resourcedata = {
-            # "Account": account_detail,
-            # "Region": region,
             "Service": resource["Keys"][0],
             "Cost": resource["Metrics"]["UnblendedCost"]["Amount"],
         }
@@ -148,7 +135,7 @@ def lambda_handler(event, context):
     data_list = []
 
     # Adding the extracted cost data to the Prometheus
-    # gauge as labels for service, region, and cost.
+    # gauge as labels for service and cost.
     try:
         registry = CollectorRegistry()
         project_name_for_gauge = project_name.replace("-", "_")
@@ -161,10 +148,8 @@ def lambda_handler(event, context):
         for i in range(len(parent_list)):
             service = parent_list[i]["Service"]
             cost = parent_list[i]["Cost"]
-            # account_id = parent_list[i]["Account"]
             data_dict = {
                 "Service": service,
-                #   "Region": region,
                 "Cost": cost,
             }
 
@@ -173,32 +158,28 @@ def lambda_handler(event, context):
             gauge.labels(service, cost).set(cost)
 
             # Push the metric to the Prometheus Gateway
-            # push_to_gateway(
-            #     "pushgateway:9091", job=f"{project_name}-Service", registry=registry
-            # )
             push_to_gateway(
                 os.environ["prometheus_ip"],
                 job=f"{project_name}-Service",
                 registry=registry,
             )
         # convert data to JSON
-        # json_data = json.dumps(data_list)
-        print(data_list)
+        json_data = json.dumps(data_list)
 
         # upload JSON file to S3 bucket
-        # bucket_name = os.environ["bucket_name"]
-        # key_name = f'{os.environ["expensive_service_prefix"]}/{account_id}.json'
-        # try:
-        #     s3.put_object(Bucket=bucket_name, Key=key_name, Body=json_data)
-        # except botocore.exceptions.ClientError as e:
-        #     if e.response["Error"]["Code"] == "NoSuchBucket":
-        #         raise ValueError(f"Bucket not found: {os.environ['bucket_name']}")
-        #     elif e.response["Error"]["Code"] == "AccessDenied":
-        #         raise ValueError(
-        #             f"Access denied to S3 bucket: {os.environ['bucket_name']}"
-        #         )
-        #     else:
-        #         raise ValueError(f"Failed to upload data to S3 bucket: {str(e)}")
+        bucket_name = os.environ["bucket_name"]
+        key_name = f'{os.environ["project_cost_breakdown_prefix"]}/{project_name}.json'
+        try:
+            s3.put_object(Bucket=bucket_name, Key=key_name, Body=json_data)
+        except botocore.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchBucket":
+                raise ValueError(f"Bucket not found: {os.environ['bucket_name']}")
+            elif e.response["Error"]["Code"] == "AccessDenied":
+                raise ValueError(
+                    f"Access denied to S3 bucket: {os.environ['bucket_name']}"
+                )
+            else:
+                raise ValueError(f"Failed to upload data to S3 bucket: {str(e)}")
     except Exception as e:
         logging.error("Error initializing Prometheus Registry and Gauge: " + str(e))
         return {"statusCode": 500, "body": json.dumps({"Error": str(e)})}
