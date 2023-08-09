@@ -19,7 +19,6 @@ import time
 from datetime import date, timedelta
 
 import boto3
-import botocore
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 
 # Initialize and Connect to the AWS EC2 Service
@@ -57,8 +56,6 @@ def get_cost_and_usage_data(client, start, end, project_name=""):
     """
     while True:
         try:
-            # response = {'GroupDefinitions': [{'Type': 'DIMENSION', 'Key': 'SERVICE'}], 'ResultsByTime': [{'TimePeriod': {'Start': '2023-07-08', 'End': '2023-07-22'}, 'Total': {}, 'Groups': [{'Keys': ['EC2 - Other'], 'Metrics': {'UnblendedCost': {'Amount': '0.1180198417', 'Unit': 'USD'}}}, {'Keys': ['Amazon Elastic Compute Cloud - Compute'], 'Metrics': {'UnblendedCost': {'Amount': '0.0000060921', 'Unit': 'USD'}}}, {'Keys': ['Amazon Simple Notification Service'], 'Metrics': {'UnblendedCost': {'Amount': '0', 'Unit': 'USD'}}}, {'Keys': ['Amazon Simple Queue Service'], 'Metrics': {
-            #     'UnblendedCost': {'Amount': '0', 'Unit': 'USD'}}}, {'Keys': ['Amazon Simple Storage Service'], 'Metrics': {'UnblendedCost': {'Amount': '0.0000001472', 'Unit': 'USD'}}}], 'Estimated': True}], 'DimensionValueAttributes': [], 'ResponseMetadata': {'RequestId': 'ff4cb6a8-14e4-4975-808f-1edcf6e9902d', 'HTTPStatusCode': 200, 'HTTPHeaders': {'date': 'Sat, 22 Jul 2023 01:26:06 GMT', 'content-type': 'application/x-amz-json-1.1', 'content-length': '725', 'connection': 'keep-alive', 'x-amzn-requestid': 'ff4cb6a8-14e4-4975-808f-1edcf6e9902d', 'cache-control': 'no-cache'}, 'RetryAttempts': 0}}
             response = client.get_cost_and_usage(
                 TimePeriod={"Start": start, "End": end},
                 Granularity="MONTHLY",
@@ -102,21 +99,8 @@ def lambda_handler(event, context):
     end_date = str(date.today())
     start_date = str(date.today() - timedelta(days=cost_by_days))
 
-    # Initializing the list
-    # top_5_resources = []
     parent_list = []
-    # try:
-    #     # Get the list of all regions
-    #     regions = [
-    ## region["RegionName"] for region in ec2_client.describe_regions()["Regions"]
-    #     ]
-
-    # except Exception as e:
-    #     logging.error("Error getting response from ec2 describe region api : " + str(e))
-    # Loop through each region
-    # for region in regions:
     try:
-        # print(region)
         ce = boto3.client("ce")
     except Exception as e:
         logging.error("Error creating boto3 client: " + str(e))
@@ -128,12 +112,9 @@ def lambda_handler(event, context):
                 ce, start_date, end_date, project_name
             )
         else:
-            cost_and_usage = get_cost_and_usage_data(
-                ce, start_date, end_date
-            )
+            cost_and_usage = get_cost_and_usage_data(ce, start_date, end_date)
     except Exception as e:
-        logging.error(
-            "Error getting response from cost and usage api: " + str(e))
+        logging.error("Error getting response from cost and usage api: " + str(e))
 
     # Extract the cost data
     cost_data = cost_and_usage["ResultsByTime"][0]["Groups"]
@@ -179,12 +160,13 @@ def lambda_handler(event, context):
         )
         for i in range(len(parent_list)):
             service = parent_list[i]["Service"]
-            ## region = parent_list[i]["Region"]
             cost = parent_list[i]["Cost"]
             # account_id = parent_list[i]["Account"]
-            data_dict = {"Service": service,
-                         #   "Region": region,
-                         "Cost": cost}
+            data_dict = {
+                "Service": service,
+                #   "Region": region,
+                "Cost": cost,
+            }
 
             # add the dictionary to the list
             data_list.append(data_dict)
@@ -195,7 +177,9 @@ def lambda_handler(event, context):
             #     "pushgateway:9091", job=f"{project_name}-Service", registry=registry
             # )
             push_to_gateway(
-                os.environ["prometheus_ip"], job=f"{project_name}-Service", registry=registry
+                os.environ["prometheus_ip"],
+                job=f"{project_name}-Service",
+                registry=registry,
             )
         # convert data to JSON
         # json_data = json.dumps(data_list)
@@ -216,8 +200,7 @@ def lambda_handler(event, context):
         #     else:
         #         raise ValueError(f"Failed to upload data to S3 bucket: {str(e)}")
     except Exception as e:
-        logging.error(
-            "Error initializing Prometheus Registry and Gauge: " + str(e))
+        logging.error("Error initializing Prometheus Registry and Gauge: " + str(e))
         return {"statusCode": 500, "body": json.dumps({"Error": str(e)})}
     # Return the response
     return {"statusCode": 200, "body": json.dumps(parent_list)}
