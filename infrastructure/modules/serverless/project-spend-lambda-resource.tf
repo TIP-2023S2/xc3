@@ -126,9 +126,9 @@ resource "aws_lambda_function" "project_cost_breakdown" {
   filename      = values(data.archive_file.project_cost_lambda_src)[0].output_path
   environment {
     variables = {
-      prometheus_ip            = "${var.prometheus_ip}:9091"
-      bucket_name              = var.s3_xc3_bucket.bucket
-      project_spend_prefix = var.s3_prefixes.project_spend_prefix
+      prometheus_ip                 = "${var.prometheus_ip}:9091"
+      bucket_name                   = var.s3_xc3_bucket.bucket
+      project_cost_breakdown_prefix = var.s3_prefixes.project_cost_breakdown_prefix
     }
   }
   layers      = [var.prometheus_layer]
@@ -155,7 +155,7 @@ resource "aws_lambda_function" "ProjectSpendCost" {
       prometheus_ip        = "${var.prometheus_ip}:9091"
       bucket_name          = var.s3_xc3_bucket.bucket
       project_spend_prefix = var.s3_prefixes.project_spend_prefix
-      lambda_function_name =  aws_lambda_function.project_cost_breakdown.arn
+      lambda_function_name = aws_lambda_function.project_cost_breakdown.arn
     }
   }
   memory_size = var.memory_size

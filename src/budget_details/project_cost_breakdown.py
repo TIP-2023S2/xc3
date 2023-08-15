@@ -19,13 +19,14 @@ import time
 from datetime import date, timedelta
 
 import boto3
+import botocore
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 
 
-# try:
-#     s3 = boto3.client("s3")
-# except Exception as e:
-#     logging.error("Error creating boto3 client for s3: " + str(e))
+try:
+    s3 = boto3.client("s3")
+except Exception as e:
+    logging.error("Error creating boto3 client for s3: " + str(e))
 
 
 def get_cost_and_usage_data(client, start, end, project_name=""):
@@ -86,18 +87,16 @@ def lambda_handler(event, context):
         KeyError: Raise error if data not pushed to prometheus.
     """
 
-    # account_id = event["project_name"]
     project_name = event["project_name"]
     print("name", project_name)
-    # account_detail = event["account_detail"]
-    # Cost of last 14 days
-    cost_by_days = 14
+    # Cost of last 30 days
+    cost_by_days = 30
     end_date = str(date.today())
     start_date = str(date.today() - timedelta(days=cost_by_days))
 
     parent_list = []
     try:
-        # print(region)
+
         ce = boto3.client("ce")
     except Exception as e:
         logging.error("Error creating boto3 client: " + str(e))
@@ -122,17 +121,9 @@ def lambda_handler(event, context):
         key=lambda x: x["Metrics"]["UnblendedCost"]["Amount"],
         reverse=True,
     )
-
-    # print("sorted_cost_data", sorted_cost_data)
-
-    # Get the top 5 most expensive resources
-    # top_5_resources = sorted_cost_data[:5]
-
     # Print the top 5 most expensive resources and their costs
     for resource in sorted_cost_data:
         resourcedata = {
-            # "Account": account_detail,
-            # "Region": region,
             "Service": resource["Keys"][0],
             "Cost": resource["Metrics"]["UnblendedCost"]["Amount"],
         }
@@ -177,22 +168,22 @@ def lambda_handler(event, context):
                 registry=registry,
             )
 
-        print(data_list)
-
+            # convert data to JSON
+        json_data = json.dumps(data_list)
         # upload JSON file to S3 bucket
-        # bucket_name = os.environ["bucket_name"]
-        # key_name = f'{os.environ["expensive_service_prefix"]}/{account_id}.json'
-        # try:
-        #     s3.put_object(Bucket=bucket_name, Key=key_name, Body=json_data)
-        # except botocore.exceptions.ClientError as e:
-        #     if e.response["Error"]["Code"] == "NoSuchBucket":
-        #         raise ValueError(f"Bucket not found: {os.environ['bucket_name']}")
-        #     elif e.response["Error"]["Code"] == "AccessDenied":
-        #         raise ValueError(
-        #             f"Access denied to S3 bucket: {os.environ['bucket_name']}"
-        #         )
-        #     else:
-        #         raise ValueError(f"Failed to upload data to S3 bucket: {str(e)}")
+        bucket_name = os.environ["bucket_name"]
+        key_name = f'{os.environ["project_cost_breakdown_prefix"]}/{project_name}.json'
+        try:
+            s3.put_object(Bucket=bucket_name, Key=key_name, Body=json_data)
+        except botocore.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchBucket":
+                raise ValueError(f"Bucket not found: {os.environ['bucket_name']}")
+            elif e.response["Error"]["Code"] == "AccessDenied":
+                raise ValueError(
+                    f"Access denied to S3 bucket: {os.environ['bucket_name']}"
+                )
+            else:
+                raise ValueError(f"Failed to upload data to S3 bucket: {str(e)}")
     except Exception as e:
         logging.error("Error initializing Prometheus Registry and Gauge: " + str(e))
         return {"statusCode": 500, "body": json.dumps({"Error": str(e)})}
