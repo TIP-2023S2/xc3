@@ -79,9 +79,13 @@ def lambda_handler(event, context):
     Returns:
         str: A message indicating the success or failure of the function execution.
     """
+<<<<<<< HEAD
 
     project_breakdown_lambda = os.environ["lambda_function_name"]
 
+=======
+    project_cost_breakdown_lambda = os.environ["lambda_function_name"]
+>>>>>>> feature/sujan-projectBreakdown
     try:
         registry = CollectorRegistry()
         g = Gauge(
@@ -121,6 +125,7 @@ def lambda_handler(event, context):
             os.environ["prometheus_ip"], job="Project-Spend-Cost", registry=registry
         )
 
+<<<<<<< HEAD
         for project_name in project_dict.keys():
             print(project_name)
             payload = {'project_name': project_name}
@@ -136,14 +141,39 @@ def lambda_handler(event, context):
                     # Handle unexpected status code
                     logging.error(
                         f"Unexpected status code {status_code} returned from project_breakdown_lambda"
+=======
+        # Loop through each project
+        for project_name in project_dict.keys():
+            payload = {'project_name': project_name}
+            try:
+                project_cost_breakdown_response = lambda_client.invoke(
+                    FunctionName = project_cost_breakdown_lambda,
+                    InvocationType = "Event",
+                    Payload =  json.dumps(payload),
+                )
+                # Extract the status code from the response
+                status_code = project_cost_breakdown_response["StatusCode"]
+                if(status_code!= 202):
+                    # Handle unexpected status code
+                    logging.error(
+                        f"Unexpected status code {status_code} returned from project_spend_cost_breakdown_lambda"
+>>>>>>> feature/sujan-projectBreakdown
                     )
             except Exception as e:
                 logging.error("Error in invoking lambda function: " + str(e))
                 return {
                     "statusCode": 500,
+<<<<<<< HEAD
                     "body": "Error invoking expensive_service_lambda",
                 }
 
+=======
+                    "body": "Error invoking project_cost_breakdown_lambda",
+                }
+           
+
+        
+>>>>>>> feature/sujan-projectBreakdown
         return {"statusCode": 200, "body": json_data}
     except botocore.exceptions.ClientError as e:
         logging.error(f"Failed to upload file to S3: {e}")

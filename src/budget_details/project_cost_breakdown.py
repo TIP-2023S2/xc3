@@ -23,6 +23,7 @@ import botocore
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 
 # Initialize and Connect to the AWS EC2 Service
+<<<<<<< HEAD
 try:
     ec2_client = boto3.client("ec2")
 except Exception as e:
@@ -31,6 +32,16 @@ try:
     s3 = boto3.client("s3")
 except Exception as e:
     logging.error("Error creating boto3 client for s3: " + str(e))
+=======
+# try:
+#     ec2_client = boto3.client("ec2")
+# except Exception as e:
+#     logging.error("Error creating boto3 client: " + str(e))
+# try:
+#     s3 = boto3.client("s3")
+# except Exception as e:
+#     logging.error("Error creating boto3 client for s3: " + str(e))
+>>>>>>> feature/sujan-projectBreakdown
 
 
 def get_cost_and_usage_data(client, start, end, project_name=""):
@@ -57,8 +68,11 @@ def get_cost_and_usage_data(client, start, end, project_name=""):
     """
     while True:
         try:
+<<<<<<< HEAD
             # response = {'GroupDefinitions': [{'Type': 'DIMENSION', 'Key': 'SERVICE'}], 'ResultsByTime': [{'TimePeriod': {'Start': '2023-07-08', 'End': '2023-07-22'}, 'Total': {}, 'Groups': [{'Keys': ['EC2 - Other'], 'Metrics': {'UnblendedCost': {'Amount': '0.1180198417', 'Unit': 'USD'}}}, {'Keys': ['Amazon Elastic Compute Cloud - Compute'], 'Metrics': {'UnblendedCost': {'Amount': '0.0000060921', 'Unit': 'USD'}}}, {'Keys': ['Amazon Simple Notification Service'], 'Metrics': {'UnblendedCost': {'Amount': '0', 'Unit': 'USD'}}}, {'Keys': ['Amazon Simple Queue Service'], 'Metrics': {
             #     'UnblendedCost': {'Amount': '0', 'Unit': 'USD'}}}, {'Keys': ['Amazon Simple Storage Service'], 'Metrics': {'UnblendedCost': {'Amount': '0.0000001472', 'Unit': 'USD'}}}], 'Estimated': True}], 'DimensionValueAttributes': [], 'ResponseMetadata': {'RequestId': 'ff4cb6a8-14e4-4975-808f-1edcf6e9902d', 'HTTPStatusCode': 200, 'HTTPHeaders': {'date': 'Sat, 22 Jul 2023 01:26:06 GMT', 'content-type': 'application/x-amz-json-1.1', 'content-length': '725', 'connection': 'keep-alive', 'x-amzn-requestid': 'ff4cb6a8-14e4-4975-808f-1edcf6e9902d', 'cache-control': 'no-cache'}, 'RetryAttempts': 0}}
+=======
+>>>>>>> feature/sujan-projectBreakdown
             response = client.get_cost_and_usage(
                 TimePeriod={"Start": start, "End": end},
                 Granularity="MONTHLY",
@@ -191,12 +205,21 @@ def lambda_handler(event, context):
             gauge.labels(service, cost).set(cost)
 
             # Push the metric to the Prometheus Gateway
+<<<<<<< HEAD
             # push_to_gateway(
             #     "pushgateway:9091", job=f"{project_name}-Service", registry=registry
             # )
             push_to_gateway(
                 os.environ["prometheus_ip"], job=f"{project_name}-Service", registry=registry
             )
+=======
+            push_to_gateway(
+                os.environ["prometheus_ip"], job=f"{project_name}-Service", registry=registry
+            )
+            # push_to_gateway(
+            #     os.environ["prometheus_ip"], job=account_id, registry=registry
+            # )
+>>>>>>> feature/sujan-projectBreakdown
         # convert data to JSON
         # json_data = json.dumps(data_list)
         print(data_list)
@@ -220,4 +243,8 @@ def lambda_handler(event, context):
             "Error initializing Prometheus Registry and Gauge: " + str(e))
         return {"statusCode": 500, "body": json.dumps({"Error": str(e)})}
     # Return the response
+<<<<<<< HEAD
     return {"statusCode": 200, "body": json.dumps(parent_list)}
+=======
+    return {"statusCode": 200, "body": json.dumps(parent_list)}
+>>>>>>> feature/sujan-projectBreakdown
