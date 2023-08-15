@@ -87,9 +87,8 @@ def lambda_handler(event, context):
     """
 
     project_name = event["project_name"]
-    print("name", project_name)
-    # Cost of last 14 days
-    cost_by_days = 14
+    # Cost of last 30 days
+    cost_by_days = 30
     end_date = str(date.today())
     start_date = str(date.today() - timedelta(days=cost_by_days))
 
