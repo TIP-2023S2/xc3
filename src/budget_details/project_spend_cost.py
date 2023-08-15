@@ -34,6 +34,10 @@ try:
     ce_client = boto3.client("ce")
 except Exception as e:
     logging.error("Error creating boto3 client for ce: " + str(e))
+try:
+    lambda_client = boto3.client("lambda")
+except Exception as e:
+    logging.error("Error creating boto3 client for lambda: " + str(e))
 
 
 cost_by_days = 30
@@ -75,6 +79,9 @@ def lambda_handler(event, context):
     Returns:
         str: A message indicating the success or failure of the function execution.
     """
+
+    project_breakdown_lambda = os.environ["lambda_function_name"]
+
     try:
         registry = CollectorRegistry()
         g = Gauge(
@@ -96,7 +103,8 @@ def lambda_handler(event, context):
             if tag_value == "":
                 tag_value = "Others"
             print(tag_value)
-            g.labels(tag_value, cost).set(cost)
+            tag_value_for_metric = tag_value.replace("-", "_")
+            g.labels(tag_value_for_metric, cost).set(cost)
             project_dict[tag_value] = cost
 
         # Convert the dictionary to JSON
@@ -112,6 +120,30 @@ def lambda_handler(event, context):
         push_to_gateway(
             os.environ["prometheus_ip"], job="Project-Spend-Cost", registry=registry
         )
+
+        for project_name in project_dict.keys():
+            print(project_name)
+            payload = {'project_name': project_name}
+            try:
+                project_breakdown_lambda_response = lambda_client.invoke(
+                    FunctionName=project_breakdown_lambda,
+                    InvocationType="Event",
+                    Payload=json.dumps(payload),
+                )
+                # Extract the status code from the response
+                status_code = project_breakdown_lambda_response["StatusCode"]
+                if status_code != 202:
+                    # Handle unexpected status code
+                    logging.error(
+                        f"Unexpected status code {status_code} returned from project_breakdown_lambda"
+                    )
+            except Exception as e:
+                logging.error("Error in invoking lambda function: " + str(e))
+                return {
+                    "statusCode": 500,
+                    "body": "Error invoking expensive_service_lambda",
+                }
+
         return {"statusCode": 200, "body": json_data}
     except botocore.exceptions.ClientError as e:
         logging.error(f"Failed to upload file to S3: {e}")
