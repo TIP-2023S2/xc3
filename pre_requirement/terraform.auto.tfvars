@@ -14,7 +14,7 @@
 
 
 project       = "example"
-creator_email = "example@example.co"
-owner_email   = "example@example.co"
-namespace     = "example"
-region        = "eu-west-1"
+creator_email = "104088466@student.swin.edu.au"
+owner_email   = "104088466@student.swin.edu.au"
+namespace     = "marjanproject3"
+region        = "ap-southeast-2"
