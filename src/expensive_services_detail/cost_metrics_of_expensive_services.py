@@ -60,8 +60,10 @@ def get_cost_and_usage_data(client, start, end, region, account_id):
             response = client.get_cost_and_usage(
                 TimePeriod={"Start": start, "End": end},
                 Granularity="MONTHLY",
-                Metrics=["UnblendedCost"],
-                GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
+                Metrics=["UnblendedCost", "UsageQuantity"],
+                GroupBy=[
+                    {"Type": "DIMENSION", "Key": "SERVICE"},
+                    {"Type": "DIMENSION", "Key": "USAGE_TYPE"}],
                 Filter={
                     "And": [
                         {"Dimensions": {"Key": "REGION", "Values": [region]}},
@@ -97,8 +99,10 @@ def lambda_handler(event, context):
         KeyError: Raise error if data not pushed to prometheus.
     """
 
-    account_id = event["account_id"]
-    account_detail = event["account_detail"]
+    # account_id = event["account_id"]
+    # account_detail = event["account_detail"]
+    account_id = "884890559263"
+    account_detail = "884890559263"
     # Cost of last 14 days
     cost_by_days = 14
     end_date = str(date.today())
@@ -145,12 +149,16 @@ def lambda_handler(event, context):
         top_5_resources = sorted_cost_data[:5]
 
         # Print the top 5 most expensive resources and their costs
-        for resource in top_5_resources:
+        for resource in cost_data:
             resourcedata = {
                 "Account": account_detail,
                 "Region": region,
                 "Service": resource["Keys"][0],
+                "Usage_type": resource["Keys"][1],
+                "Usage_quantity": resource["Metrics"]["UsageQuantity"]["Amount"],
+                "unit": resource["Metrics"]["UsageQuantity"]["Unit"],
                 "Cost": resource["Metrics"]["UnblendedCost"]["Amount"],
+
             }
             parent_list.append(resourcedata)
 
@@ -164,9 +172,9 @@ def lambda_handler(event, context):
     try:
         registry = CollectorRegistry()
         gauge = Gauge(
-            "Expensive_Services_Detail",
+            "Expensive_Services_Detail_broken",
             "AWS Services Cost Detail",
-            labelnames=["service", "cost", "region", "account_id"],
+            labelnames=["account_id", "Service", "region", "Usage_type", "Usage_Quantity", "Unit", "Cost"],
             registry=registry,
         )
         for i in range(len(parent_list)):
@@ -174,11 +182,14 @@ def lambda_handler(event, context):
             region = parent_list[i]["Region"]
             cost = parent_list[i]["Cost"]
             account_id = parent_list[i]["Account"]
-            data_dict = {"Service": service, "Region": region, "Cost": cost}
+            usage_type = parent_list[i]["Usage_type"]
+            usage_quantity = float(parent_list[i]["Usage_quantity"])
+            unit = parent_list[i]["unit"]
+            data_dict = {"Service": service, "Region": region, "Cost": cost, "account_id": account_id, "usage_type": usage_type, "usage_quantity": usage_quantity, "unit": unit}
 
             # add the dictionary to the list
             data_list.append(data_dict)
-            gauge.labels(service, cost, region, account_id).set(cost)
+            gauge.labels(account_id, service, region, usage_type, usage_quantity, unit, cost).set(cost)
 
             # Push the metric to the Prometheus Gateway
             push_to_gateway(
