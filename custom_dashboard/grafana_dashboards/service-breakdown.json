@@ -24,7 +24,7 @@
   "panels": [
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -86,7 +86,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "prometheus"
           },
           "editorMode": "code",
           "expr": "${Project}_Services_Cost{project_spend_services=\"$Service\"}",
@@ -151,7 +151,7 @@
           ]
         },
         "datasource": {
-          "type": "prometheus",
+          "type": "prometheus"
         },
         "definition": "query_result(Project_Spend_Cost)",
         "hide": 0,
