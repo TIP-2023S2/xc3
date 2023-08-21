@@ -56,8 +56,11 @@ def get_cost_and_usage_data(client, start, end, project_name=""):
             response = client.get_cost_and_usage(
                 TimePeriod={"Start": start, "End": end},
                 Granularity="MONTHLY",
-                Metrics=["UnblendedCost"],
-                GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
+                Metrics=["UnblendedCost", "UsageQuantity"],
+                GroupBy=[
+                    {"Type": "DIMENSION", "Key": "SERVICE"},
+                    {"Type": "DIMENSION", "Key": "USAGE_TYPE"},
+                ],
                 Filter={
                     "Tags": {
                         "Key": "Project",
@@ -125,6 +128,9 @@ def lambda_handler(event, context):
     for resource in sorted_cost_data:
         resourcedata = {
             "Service": resource["Keys"][0],
+            "Usage_type": resource["Keys"][1],
+            "Usage_quantity": resource["Metrics"]["UsageQuantity"]["Amount"],
+            "unit": resource["Metrics"]["UsageQuantity"]["Unit"],
             "Cost": resource["Metrics"]["UnblendedCost"]["Amount"],
         }
         parent_list.append(resourcedata)
@@ -143,18 +149,31 @@ def lambda_handler(event, context):
         gauge = Gauge(
             f"{project_name_for_gauge}_Services_Cost",
             "AWS Services Cost Detail",
-            labelnames=["project_spend_services", "project_spend_cost"],
+            labelnames=[
+                "project_spend_services",
+                "project_spend_cost",
+                "Usage_type",
+                "Usage_Quantity",
+                "Unit",
+            ],
             registry=registry,
         )
-        for i in range(len(parent_list)):
-            service = parent_list[i]["Service"]
+        for pos, value in enumerate(cost_data):
+            # account_id = event["account_id"]
+            data_list = value.get("Keys", [])
+            metrics = value.get("Metrics", {})
+            service, usage_type = data_list[0], data_list[1]
+            usage_quantity = metrics.get("UsageQuantity", {}).get("Amount", "N/A")
+            unit = metrics.get("UsageQuantity", {}).get("Unit", "N/A")
+            cost = metrics.get("UnblendedCost", {}).get("Amount", "N/A")
+            gauge.labels(service, cost, usage_type, usage_quantity, unit).set(cost)
 
-            cost = parent_list[i]["Cost"]
-            # account_id = parent_list[i]["Account"]
             data_dict = {
                 "Service": service,
-                #   "Region": region,
                 "Cost": cost,
+                "usage_type": usage_type,
+                "usage_quantity": usage_quantity,
+                "unit": unit,
             }
 
             # add the dictionary to the list
