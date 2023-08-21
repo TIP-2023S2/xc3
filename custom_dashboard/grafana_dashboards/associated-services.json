@@ -51,6 +51,12 @@
               "mode": "off"
             }
           },
+          "links": [
+            {
+              "title": "",
+              "url": "/d/ccc24ad5-7027-4b88-8398-66fef423a927/service-breakdown?orgId=1&var-Service=${__data.fields.project_spend_services}"
+            }
+          ],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -93,6 +99,7 @@
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
       },
+      "pluginVersion": "10.0.2",
       "targets": [
         {
           "datasource": {
@@ -256,6 +263,6 @@
   "timezone": "",
   "title": "Associated Services",
   "uid": "associated-service-12",
-  "version": 4,
+  "version": 5,
   "weekStart": ""
 }
