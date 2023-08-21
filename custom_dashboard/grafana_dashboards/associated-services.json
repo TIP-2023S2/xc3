@@ -98,8 +98,8 @@
           "datasource": {
             "type": "prometheus"
           },
-          "editorMode": "code",
-          "expr": "topk(5, sort_desc(${ProjectName}_Services_Cost))",
+          "editorMode": "builder",
+          "expr": "topk(5, sum by(project_spend_services) (${ProjectName}_Services_Cost))",
           "format": "table",
           "instant": false,
           "legendFormat": "{{project_spend_services}}",
@@ -171,7 +171,7 @@
             "type": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sort_desc(${ProjectName}_Services_Cost)",
+          "expr": "topk(5, sum by(project_spend_services) (${ProjectName}_Services_Cost))",
           "format": "table",
           "instant": false,
           "legendFormat": "__auto",
@@ -198,7 +198,12 @@
           "options": {
             "excludeByName": {
               "Time": true,
+              "Unit": true,
+              "Usage_Quantity": true,
+              "Usage_type": true,
               "__name__": true,
+              "exported_job": true,
+              "instance": true,
               "job": true,
               "project_spend_cost": true
             },
